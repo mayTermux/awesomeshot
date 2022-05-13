@@ -73,6 +73,7 @@ function convertShadow() {
 
 function convertBorder() {
   border_color="#F8F9FA"
+  #border_color="none"
   border_size=30
   magick "${full_file_name}" -bordercolor "${border_color}" -border ${border_size} "${full_file_name}"
 }
@@ -88,8 +89,9 @@ function finish() {
 }
 
 flameshot gui --raw > ${full_file_name}
-convertTitleBar
+#convertTitleBar
 convertRounded
 convertShadow
 convertBorder
 xclip -selection clipboard -i ${full_file_name} -t image/png
+finish
