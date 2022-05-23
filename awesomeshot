@@ -89,7 +89,7 @@ function finish() {
 }
 
 flameshot gui --raw > ${full_file_name}
-#convertTitleBar
+convertTitleBar
 convertRounded
 convertShadow
 convertBorder
