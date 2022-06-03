@@ -1,24 +1,301 @@
 #!/usr/bin/env bash
 
-screenshot_dir="${HOME}/Pictures/Awesomeshot"
+version="1.1.0-desktop"
+
+XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-${HOME}/.config}
+config_file="${XDG_CONFIG_HOME}/awesomeshot/awesomeshot.conf"
+
+LC_ALL=C
+LANG=C
+
+# Color
+COLOR_DEFAULT="\e[39m"
+COLOR_DANGER="\e[91m"
+COLOR_WARNING="\e[93m"
+COLOR_SUCCESS="\e[92m"
+COLOR_SKY="\e[34m"
+
+read -rd '' config << 'EOF'
+
+screenshot_result_path="${HOME}/Pictures/Awesomeshot"
+
 file_name="Screenshot_`date "+%Y-%m-%d_%H-%M-%S"`.png"
-full_file_name="${screenshot_dir}/${file_name}"
+
+full_file_name="${screenshot_result_path}/${file_name}"
+
+backup="yes"
+
+backup_path="${screenshot_result_path}/Backup"
+
+hex_color=(
+  "#F8F9FA" # white
+  "#000000" # black
+  "#282C34" # black-gray
+  "#333333" # gray
+  "#A8D7FE" # blue sky
+)
+
+convert_titlebar="yes"
+
+add_on_img="yes"
+
+width_img=400
+height_img=700
+
+titlebar_color="${hex_color[2]}"
+
+convert_titlebar_text=""
+
+titlebar_text="גּ awesomeshot"
+
+titlebar_text_position="north"
+
+titlebar_text_size="35"
+
+titlebar_text_color="${hex_color[0]}"
+
+titlebar_text_background="none"
+
+titlebar_text_font="JetBrains-Mono-Medium-Nerd-Font-Complete"
+
+titlebar_text_xy="+0+5"
+
+convert_rounded="yes"
+
+border_radius=10
+
+convert_first_border=""
+
+first_border_color="${hex_color[0]}"
+
+first_border_size=7
+
+convert_second_border="yes"
+
+second_border_color="none"
+
+second_border_size=50
+
+convert_second_border_gradient="yes"
+
+interpolate_method="saddle"
+
+second_border_gradient_color=(
+  "#C850C0"
+  "#FFCC70"
+  "#4158D0"
+  "#FE7FAA"
+)
+
+saddle_color_top_left="${second_border_gradient_color[0]}"
+saddle_color_top_right="${second_border_gradient_color[1]}"
+saddle_color_bottom_left="${second_border_gradient_color[2]}"
+saddle_color_bottom_right="${second_border_gradient_color[0]}"
+
+mesh_color_top_left="${second_border_gradient_color[1]}"
+mesh_color_top_right="${second_border_gradient_color[1]}"
+mesh_color_bottom_left="${second_border_gradient_color[3]}"
+mesh_color_bottom_right="${second_border_gradient_color[3]}"
+
+convert_shadow="yes"
+
+shadow_color="${hex_color[1]}"
+
+shadow_size="75x30+0+30"
+
+convert_footer=""
+
+footer_text=" Shot by Awesomeshot-Desktop"
+
+footer_position="South"
+
+footer_xy="+0+45"
+
+footer_font="JetBrains-Mono-Medium-Nerd-Font-Complete"
+
+footer_font_size=25
+
+footer_foreground="${hex_color[1]}"
+
+footer_background="none"
+
+open_image=""
+
+EOF
+
+function stat() {
+
+  if [ "${2}" == "Success" ]; then
+
+    echo -e "  [ ${COLOR_SUCCESS}${1}${COLOR_DEFAULT} ]\n  ${COLOR_SUCCESS}|\n  ╰─>${COLOR_DEFAULT} ${3}"
+
+  elif [ "${2}" == "Warning" ]; then
+
+    echo -e "  [ ${COLOR_WARNING}${1}${COLOR_DEFAULT} ]\n  ${COLOR_WARNING}|\n  ╰─>${COLOR_DEFAULT} ${3}"
+
+  elif [ "${2}" == "Danger" ]; then
+
+    echo -e "  [ ${COLOR_DANGER}${1}${COLOR_DEFAULT} ]\n  ${COLOR_DANGER}|\n  ╰─>${COLOR_DEFAULT} ${3}"
+
+  fi
+  
+}
+
+function loadConfigFile() {
+
+  source "${config_file}"
+
+}
+
+function checkConfig() {
+
+  if [[ $convert_second_border == "yes" && $convert_second_border_gradient == "yes" ]]; then
+
+    if [ $second_border_color != "none" ]; then
+
+      stat "ERROR" "Danger" "Conflict detected on config '${COLOR_WARNING}convert_second_border${COLOR_DEFAULT}' and '${COLOR_WARNING}convert_second_border_gradient${COLOR_DEFAULT}' enable at the same time"
+
+      echo -e "
+      both variable can be enable if '${COLOR_WARNING}second_border_color${COLOR_DEFAULT}' value is none
+      "
+
+      exit 1
+
+    fi
+
+  fi
+
+}
+
+function makeConfigDir() {
+
+  mkdir -p "${XDG_CONFIG_HOME}/awesomeshot" 2> /dev/null
+
+}
+
+function makeConfigFile() {
+
+  printf '%s\n' "${config}" > "${config_file}"
+
+}
+
+function getUserConfig() {
+
+  if [ -f "${config_file}" ]; then
+
+    loadConfigFile
+  
+  elif [ ! -f "${config_file}" ]; then
+
+    makeConfigDir
+    makeConfigFile
+    loadConfigFile
+
+  fi
+
+}
+
+function generateDefaultConfig() {
+
+  if [ ! -f "${config_file}" ]; then
+
+    if [ ! -d "${XDG_CONFIG_HOME}/awesomeshot" ]; then
+
+      makeConfigDir
+
+    fi
+    
+    makeConfigFile
+    stat "SUCCESS" "Success" "Default config has been generated"
+    exit
+  fi
+
+  if [ -f "${config_file}" ]; then
+
+    read -p "Config '${config_file}' already exists, do you want to generate default config [y/N] " ask
+    case "${ask}" in
+      y|Y )
+        makeConfigFile
+        stat "SUCCESS" "Success" "Default config has been re-generated"
+      ;;
+      n|N )
+        exit
+      ;;
+    esac
+
+  fi
+
+}
+
+function headerVersion() {
+
+  printf "\n\n   AWESOMESHOT ${COLOR_WARNING}%-14s${COLOR_DEFAULT}\n\n" "v${version}"
+
+}
+
+function title() {
+
+  printf "\n\b\r\033[2K***${1}%-25s" | sed 's/ /./g' | sed 's/*/ /g'
+
+}
+
+function subTitle() {
+
+  printf "%-60s" "****╰─>*${1}" | sed 's/ /./g' | sed 's/*/ /g'
+
+}
+
+function checkCommand() {
+
+  #   
+  #   
+
+  if [[ $? -eq 0 && ${PIPESTATUS[0]} -eq 0 ]]; then
+
+    echo -e " ${COLOR_SUCCESS}${COLOR_DEFAULT}"
+
+  else
+
+    echo -e " ${COLOR_DANGER}${COLOR_DEFAULT}"
+
+  fi
+
+}
+
+function backupOriginalPhoto() {
+
+  if [ ! -d ${backup_path} ]; then
+  
+    mkdir -p "${backup_path}"
+
+  fi
+
+  cp "${full_file_name}" "${backup_path}"
+
+  echo -e ""
+  subTitle "[+]*Backup*File*"
+
+  if [ -f ${backup_path}/${file_name} ]; then
+
+    checkCommand
+
+  else
+
+    checkCommand
+  
+  fi
+
+}
 
 function convertTitleBar() {
+
   g="#27C93F" #green
   y="#FFBD2E" #yellow
   r="#FF5F56" #red
   b="#282C34" #black
 
-  # width_img=$(magick ${full_file_name} - format "%w" info:)
-  # height_img=$(magick ${full_file_name} - format "%h" info:)
-  # if (( ${width_img} > ${height_img} )); then
-  #   height_img=${width_img}
-  # elif (( ${width_img} < ${height_img} )); then
-  #   width_img=${height_img}
-  # fi
-  width_img=400
-  height_img=700
+  echo -e ""
+  subTitle "[+]*Set*Title*Bar*"
 
   rad=$( echo "0.0025 * ${width_img} * ${height_img} / 100" | bc )
   br=$( echo "${rad} * 5" | bc )
@@ -27,38 +304,96 @@ function convertTitleBar() {
   x1=$( echo "${x0} + ${rad}" | bc )
 
   declare -A arr=()
+
   for i in {0..2}; do
+
     arr[$i,0]=$x0
     arr[$i,1]=$y0
     arr[$i,2]=$x1
     arr[$i,3]=$y0
     x0=$( echo "${x0} + ${rad} * 3" | bc )
     x1=$( echo "${x0} + ${rad}" | bc )
+
   done
 
-  magick ${full_file_name} -fill ${b} \
-  -background ${b} \
-  -gravity north -splice 0x$br \
-  -draw "fill ${r}   circle ${arr[0,0]},${arr[0,1]} ${arr[0,2]},${arr[0,3]}
-  fill ${y}   circle ${arr[1,0]},${arr[1,1]} ${arr[1,2]},${arr[1,3]}
-  fill ${g}   circle ${arr[2,0]},${arr[2,1]} ${arr[2,2]},${arr[2,3]}" \
-  ${full_file_name}
+  if [ "${add_on_img}" == "yes" ]; then
+
+    magick ${full_file_name} -fill ${b} \
+      -background ${titlebar_color} \
+      -gravity north \
+      -chop 0x${br} \
+      -splice 0x${br} \
+      -draw "fill ${r}   circle ${arr[0,0]},${arr[0,1]} ${arr[0,2]},${arr[0,3]}
+             fill ${y}   circle ${arr[1,0]},${arr[1,1]} ${arr[1,2]},${arr[1,3]}
+             fill ${g}   circle ${arr[2,0]},${arr[2,1]} ${arr[2,2]},${arr[2,3]}" \
+      ${full_file_name}
+
+  else
+
+    magick ${full_file_name} -fill ${b} \
+      -background ${titlebar_color} \
+      -gravity north \
+      -splice 0x${br} \
+      -draw "fill ${r}   circle ${arr[0,0]},${arr[0,1]} ${arr[0,2]},${arr[0,3]}
+             fill ${y}   circle ${arr[1,0]},${arr[1,1]} ${arr[1,2]},${arr[1,3]}
+             fill ${g}   circle ${arr[2,0]},${arr[2,1]} ${arr[2,2]},${arr[2,3]}" \
+      ${full_file_name}
+
+  fi
+
+  checkCommand
+
+}
+
+function convertTitleBarText() {
+
+  subTitle "[+]*Set*Title*Bar*Text*"
+
+  echo -n "${titlebar_text}" |
+
+  convert "${full_file_name}" \
+    -gravity "${titlbar_text_position}" \
+    -pointsize "${titlebar_text_size}" \
+    -fill "${titlebar_text_color}" \
+    -undercolor "${titlebar_text_background}" \
+    -font "${titlebar_text_font}" \
+    -annotate "${titlebar_text_xy}" \
+    @- "${full_file_name}"
+
+  checkCommand
+
 }
 
 function convertRounded() {
-  border_radius=10
-  magick "${full_file_name}" \
+
+  subTitle "[+]*Set*Rounded*Corner*"
+
+  convert "${full_file_name}" \
     \( +clone -alpha extract -draw \
       "fill black polygon 0,0,0,${border_radius} ${border_radius},0 fill white circle ${border_radius},${border_radius},${border_radius},0" \
       \( +clone -flip \) -compose Multiply -composite \
       \( +clone -flop \) -compose Multiply -composite \
     \) \
     -alpha off -compose CopyOpacity -composite "${full_file_name}"
+
+  checkCommand
+
+}
+
+function convertFirstBorder() {
+
+  subTitle "[+]*Set*Image*First*Border*Color"
+
+  convert "${full_file_name}" -bordercolor "${first_border_color}" -border "${first_border_size}" "${full_file_name}"
+
+  checkCommand
+
 }
 
 function convertShadow() {
-  shadow_color="#000000"
-  shadow_size="75x30+0+30"
+
+  subTitle "[+]*Set*Image*Shadow*"
+
   convert "${full_file_name}" \
     \( \
       +clone \
@@ -69,29 +404,233 @@ function convertShadow() {
     -background none \
     -layers merge \
     +repage "${full_file_name}"
+
+  checkCommand
+
 }
 
-function convertBorder() {
-  border_color="#F8F9FA"
-  #border_color="none"
-  border_size=30
-  magick "${full_file_name}" -bordercolor "${border_color}" -border ${border_size} "${full_file_name}"
+function convertSecondBorder() {
+
+  subTitle "[+]*Set*Image*Second*Border*Color"
+
+  convert "${full_file_name}" -bordercolor "${second_border_color}" -border "${second_border_size}" "${full_file_name}"
+
+  checkCommand
+
+}
+
+function interpolateSaddle() {
+
+  interpolate_file_name="interpolate_saddle"
+
+  convert \
+    \( \
+      xc:${saddle_color_top_left} xc:${saddle_color_top_right} +append \
+    \) \
+    \( \
+      xc:${saddle_color_bottom_left} xc:${saddle_color_bottom_right} +append \
+    \) -append -size $size_wh \
+    xc: +swap -fx 'v.p{i/(w-1),j/(h-1)}' \
+    "${screenshot_result_path}/Background\ Gradient/${interpolate_file_name}.png"
+
+}
+
+function interpolateMesh() {
+
+  interpolate_file_name="interpolate_mesh"
+
+  convert \
+    \( \
+      xc:${mesh_color_top_left} xc:${mesh_color_top_right} +append \
+    \) \
+    \( \
+      xc:${mesh_color_bottom_left} xc:${mesh_color_bottom_right} +append \
+    \) -append -size ${size_wh} \
+    xc: +swap -interpolate Mesh -fx 'v.p{i/(w-1),j/(h-1)}' \
+    "${screenshot_result_path}/Background\ Gradient/${interpolate_file_name}.png"
+
+}
+
+function convertSecondBorderGradient() {
+
+  subTitle "[+]*Set*Image*Second*Border*Gradient*"
+
+  size_wh=$(identify -format %wx%h ${full_file_name})
+
+  if [ ! -d "${screenshot_result_path}/Background\ Gradient/" ]; then
+
+    mkdir -p "${screenshot_result_path}/Background\ Gradient/"
+
+  fi
+
+  case ${interpolate_method} in
+
+    "saddle"|"Saddle" )
+
+      interpolateSaddle
+
+    ;;
+
+    "mesh"|"Mesh" )
+
+      interpolateMesh
+
+    ;;
+
+  esac
+
+  composite -gravity center "${full_file_name}" "${screenshot_result_path}/Background\ Gradient/${interpolate_file_name}.png" "${full_file_name}"
+
+  checkCommand
+
 }
 
 function finish() {
-  latest_file=`/bin/ls -th ${screenshot_dir} | head -n 1`
-  size=`find ${screenshot_dir}/${latest_file} -printf %s`
+
+  latest_file=`/bin/ls -th ${screenshot_result_path} | head -n 1`
+  size=`find ${screenshot_result_path}/${latest_file} -printf %s`
 
   if (( ${size} == 0 || ${size} <= 20 )); then
-    rm -rf "${screenshot_dir}/${latest_file}"
+    rm -rf "${screenshot_result_path}/${latest_file}"
   fi
   notify-send "ImageMagick" "Improving success!" -t 3000
+
 }
 
-flameshot gui --raw > ${full_file_name}
-convertTitleBar
-convertRounded
-convertShadow
-convertBorder
-xclip -selection clipboard -i ${full_file_name} -t image/png
-finish
+function runProgram() {
+
+  getUserConfig
+  headerVersion
+
+  title "${COLOR_SKY}[?]*Flameshot*Take*Screenshot${COLOR_DEFAULT}"
+  flameshot gui --raw > ${full_file_name}
+  checkCommand
+
+  title "${COLOR_SKY}[?]*CHECKING*FILE${COLOR_DEFAULT}"
+  if [ -f "${full_file_name}" ]; then
+
+    checkCommand
+
+    if [ "${backup}" == "yes" ]; then
+
+      title "${COLOR_SKY}[+]*BACKUP*IMAGE${COLOR_DEFAULT}"
+      backupOriginalPhoto
+
+    fi
+
+    title "${COLOR_SKY}[+]*EDITING*IMAGE${COLOR_DEFAULT}"
+
+    if [ "${convert_titlebar}" == "yes" ]; then
+
+      convertTitleBar
+
+      if [ "${convert_titlebar_text}" == "yes" ]; then
+
+        convertTitleBarText
+
+      fi
+
+    fi
+
+    if [ "${convert_rounded}" == "yes" ]; then
+
+      convertRounded
+
+    fi
+
+    if [ "${convert_first_border}" == "yes" ]; then
+
+      convertFirstBorder
+      convertRounded
+
+    fi
+
+    if [ "${convert_shadow}" == "yes" ]; then
+
+      convertShadow
+
+    fi
+
+    if [ "${convert_second_border}" == "yes" ]; then
+
+      convertSecondBorder
+
+    fi
+
+    if [ "${convert_second_border_gradient}" == "yes" ]; then
+
+      convertSecondBorderGradient
+
+    fi
+
+    if [ "${convert_footer}" == "yes" ]; then
+
+      convertFooter
+
+    fi
+
+    xclip -selection clipboard -i ${full_file_name} -t image/png
+    finish
+    setterm -cursor on
+
+
+  else
+
+    echo -e "\n"
+    stat "ERROR" "Danger" "${COLOR_DANGER}${full_file_name}${COLOR_DEFAULT}: file not found"
+
+  fi
+
+
+}
+
+function handleInterruptByUser() {
+
+  echo -e "
+    \n   [ ${COLOR_WARNING}ERROR${COLOR_DEFAULT} ] > ${COLOR_DANGER}${1}${COLOR_DEFAULT}\n"
+
+  setterm -cursor on
+
+  read -n 1 -s -r -p "   Press any key to exit "
+
+  exit 1
+
+}
+
+function main() {
+  trap "handleInterruptByUser 'Interrupt By User'" 2
+  setterm -cursor off
+  ${1} ${2}
+}
+
+case "${1}" in
+
+  -c|--config )
+    generateDefaultConfig
+  ;;
+
+  -r|--running )
+    main runProgram
+  ;;
+
+  -h|--help )
+    help
+  ;;
+
+  -v|--version )
+    version
+  ;;
+
+  *)
+    help
+  ;;
+
+esac
+
+# headerVersion
+# title "${COLOR_SKY}[?] CHECKING FILE${COLOR_DEFAULT}"
+# checkCommand
+# subTitle "[+]*Execute*Program*"
+# checkCommand
+# subTitle "[+]*Backup*File*"
+# checkCommand
